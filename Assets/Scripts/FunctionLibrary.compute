@@ -1,0 +1,38 @@
+#pragma kernel FunctionKernel
+
+#define PI 3.14159265358979323846
+
+RWStructuredBuffer<float3> _Positions;
+
+uint _Resolution;
+float _Step, _Time;
+
+float2 GetUV(uint3 id)
+{
+	return (id.xy + 0.5) * _Step - 1.0;
+}
+
+void SetPosition(uint3 id, float3 position)
+{
+	if (id.x < _Resolution && id.y < _Resolution)
+	{
+		_Positions[id.x + id.y * _Resolution] = position; // (i=y*W + x) where x is the column, y is the row, W is the width
+	}
+}
+
+float3 Wave(float u, float v, float t)
+{
+	float3 p;
+	p.x = u;
+	p.y = sin(PI * (u + v + t));
+	p.z = v;
+	return p;
+}
+
+[numthreads(8, 8, 1)] // Grid of threads of one group -> Amd warp is 64, Nvidia is 32 so 64 threads is good default. Here it is done in a 2D 8x8 grid
+void FunctionKernel(uint3 id : SV_DispatchThreadID) // id will be a unique (x, y, z) number for ALL points (groups*numthreads)
+{
+	float2 uv = GetUV(id);
+	SetPosition(id, Wave(uv.x, uv.y, _Time));
+
+}
